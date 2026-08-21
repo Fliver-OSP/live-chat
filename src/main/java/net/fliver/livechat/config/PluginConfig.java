@@ -9,11 +9,20 @@ public final class PluginConfig {
   private final String language;
   private final int pollIntervalSeconds;
   private final String discordMessageFormat;
+  private final boolean updateCheckEnabled;
+  private final int updateCheckIntervalHours;
 
-  private PluginConfig(String language, int pollIntervalSeconds, String discordMessageFormat) {
+  private PluginConfig(
+      String language,
+      int pollIntervalSeconds,
+      String discordMessageFormat,
+      boolean updateCheckEnabled,
+      int updateCheckIntervalHours) {
     this.language = language;
     this.pollIntervalSeconds = pollIntervalSeconds;
     this.discordMessageFormat = discordMessageFormat;
+    this.updateCheckEnabled = updateCheckEnabled;
+    this.updateCheckIntervalHours = updateCheckIntervalHours;
   }
 
   public static PluginConfig load(JavaPlugin plugin) {
@@ -30,7 +39,15 @@ public final class PluginConfig {
             "discord-message-format",
             "<gray>[Discord]</gray> <white><player></white><gray>: </gray><white><message></white>");
 
-    return new PluginConfig(language, pollIntervalSeconds, discordMessageFormat);
+    boolean updateCheckEnabled = cfg.getBoolean("update-check.enabled", true);
+    int updateCheckIntervalHours = Math.max(1, cfg.getInt("update-check.interval-hours", 6));
+
+    return new PluginConfig(
+        language,
+        pollIntervalSeconds,
+        discordMessageFormat,
+        updateCheckEnabled,
+        updateCheckIntervalHours);
   }
 
   public String language() {
@@ -43,5 +60,13 @@ public final class PluginConfig {
 
   public String discordMessageFormat() {
     return discordMessageFormat;
+  }
+
+  public boolean updateCheckEnabled() {
+    return updateCheckEnabled;
+  }
+
+  public int updateCheckIntervalHours() {
+    return updateCheckIntervalHours;
   }
 }

@@ -14,8 +14,14 @@ language: en_US
 # been completed in the browser yet.
 poll-interval-seconds: 3
 
-# MiniMessage format for a Discord message shown in-game. <player> and
-# <message> are substituted as literal text (never re-parsed as tags), so a
-# Discord user can't inject formatting/color codes through their name or
-# message.
+# How Discord messages look in-game. <player> and <message> are substituted
+# as literal text (never re-parsed as tags), so a Discord user can't inject
+# formatting/color codes through their name or message.
 discord-message-format: "<gray>[Discord]</gray> <white><player></white><gray>: </gray><white><message></white>"
+
+# Check GitHub Releases (Fliver-OSP/live-chat) for a newer plugin version and
+# announce it in chat when one appears. Disable if you don't want update pings.
+update-check:
+  enabled: true
+  # Hours between checks after the first check (~1 minute after enable).
+  interval-hours: 6

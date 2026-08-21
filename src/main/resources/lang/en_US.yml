@@ -66,5 +66,8 @@ status:
 reload:
   success: "&aConfig and language reloaded."
 
+update:
+  available: "&eNew version available: &f%latest% &7(you have &f%current%&7). GitHub: &f%url%"
+
 no-permission: "&cYou don't have permission to do that."
 unknown-subcommand: "&cUnknown subcommand. Try /live-chat auth, list, select, add, remove, status or reload."

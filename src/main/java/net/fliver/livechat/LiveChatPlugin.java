@@ -8,6 +8,7 @@ import net.fliver.livechat.lang.Lang;
 import net.fliver.livechat.minecraft.ChatListener;
 import net.fliver.livechat.relay.InboundPoller;
 import net.fliver.livechat.state.PairingState;
+import net.fliver.livechat.update.UpdateChecker;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -18,6 +19,7 @@ public final class LiveChatPlugin extends JavaPlugin {
   private FliverLiveChatApi api;
   private PairingState state;
   private InboundPoller poller;
+  private UpdateChecker updateChecker;
 
   @Override
   public void onEnable() {
@@ -51,10 +53,14 @@ public final class LiveChatPlugin extends JavaPlugin {
     getServer().getPluginManager().registerEvents(new ChatListener(this, api, state), this);
 
     syncPollerState();
+    startUpdateChecker();
   }
 
   @Override
   public void onDisable() {
+    if (updateChecker != null) {
+      updateChecker.stop();
+    }
     if (poller != null) {
       poller.stop();
     }
@@ -71,6 +77,16 @@ public final class LiveChatPlugin extends JavaPlugin {
     }
     poller = new InboundPoller(this, api, state, config.discordMessageFormat());
     syncPollerState();
+    startUpdateChecker();
+  }
+
+  private void startUpdateChecker() {
+    if (updateChecker != null) {
+      updateChecker.stop();
+    }
+    updateChecker =
+        new UpdateChecker(this, config.updateCheckEnabled(), config.updateCheckIntervalHours());
+    updateChecker.start();
   }
 
   /** Starts/stops the Discord -> Minecraft poller based on current pairing state - called after auth, add, remove and reload. */
