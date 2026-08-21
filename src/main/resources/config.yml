@@ -1,0 +1,21 @@
+# Fliver Live Chat configuration.
+#
+# There are NO Discord credentials in this file, on purpose - the bot token
+# and webhooks live on the backend (see PROTOCOL.md). The only secret this
+# plugin ever holds is its own pairing token from /live-chat auth, and that
+# is stored encrypted in pairing.key/pairing.dat next to this file, not here.
+
+# Which lang/<code>.yml to load. Ships with en_US - copy it, translate it,
+# and point this at your new file's name to add a language (no rebuild
+# needed).
+language: en_US
+
+# How often (seconds) /live-chat auth checks whether the pairing link has
+# been completed in the browser yet.
+poll-interval-seconds: 3
+
+# MiniMessage format for a Discord message shown in-game. <player> and
+# <message> are substituted as literal text (never re-parsed as tags), so a
+# Discord user can't inject formatting/color codes through their name or
+# message.
+discord-message-format: "<gray>[Discord]</gray> <white><player></white><gray>: </gray><white><message></white>"

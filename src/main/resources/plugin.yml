@@ -1,0 +1,20 @@
+name: FliverLiveChat
+version: ${project.version}
+main: net.fliver.livechat.LiveChatPlugin
+# Paper's mechanism for "compile once, keep loading on future versions" -
+# see pom.xml's comment on why 1.20.1 is the compile floor.
+api-version: '1.20'
+author: Fliver
+description: Relays Minecraft chat to a Discord channel and back in real time.
+website: https://github.com/Fliver-OSP/live-chat
+
+commands:
+  live-chat:
+    description: Manage the Discord chat bridge.
+    usage: /live-chat <auth|list|select|add|remove|status|reload>
+    permission: livechat.admin
+
+permissions:
+  livechat.admin:
+    description: Manage Fliver Live Chat pairing and channels.
+    default: op

@@ -1,0 +1,70 @@
+# Fliver Live Chat language file - English (en_US).
+#
+# To translate: copy this file into plugins/FliverLiveChat/lang/, rename it
+# to your language's tag (e.g. tr_TR.yml, de_DE.yml), translate the text on
+# the right of each ":", then set `language: tr_TR` (or whatever you named
+# it) in plugins/FliverLiveChat/config.yml and run /live-chat reload - no
+# restart needed.
+#
+# Keep every %placeholder% token exactly as-is (including the % signs) -
+# only translate the surrounding text. "&" starts a color code (&a green,
+# &c red, &e yellow, &7 gray, &f white, &8 dark gray, &d pink, &r reset),
+# same as any other Minecraft plugin.
+
+prefix: "&8[&dLive Chat&8] &r"
+
+auth:
+  already-pending: "&7Already waiting on a pending authorization - open the link below, or let it expire and try again."
+  started: "&aOpen this link and sign in with Discord: &f%url%"
+  started-hint: "&7This code expires in %minutes% minute(s)."
+  success: "&aLinked! Run &f/live-chat list&a to pick a Discord server."
+  timeout: "&cThat link expired before it was completed. Run /live-chat auth again."
+  failed: "&cCould not start authorization (%message%)."
+
+list:
+  not-linked: "&cNot linked yet. Run /live-chat auth first."
+  no-guilds: "&7No Discord servers found where you're the owner or a moderator."
+  guild-header: "&7Pick a server with &f/live-chat select <number>&7:"
+  guild-line: "&f%index%) %name% &r%status%"
+  guild-line-bot-present: "&a(bot in server)"
+  guild-line-bot-missing: "&e(bot not invited - %url%)"
+  channel-header: "&7Pick a channel with &f/live-chat add <number>&7:"
+  channel-line: "&f%index%) #%name%&7%linked%"
+  channel-line-linked-marker: " (already linked)"
+  no-channels: "&7No text channels found in that server."
+  failed: "&cCould not load the list (%message%)."
+
+select:
+  usage: "&cUsage: /live-chat select <number>"
+  invalid: "&cRun /live-chat list first, then pick a valid number."
+  success: "&aSelected &f%name%&a. Run /live-chat list again to see its channels."
+  failed: "&cCould not select that server (%message%)."
+
+add:
+  usage: "&cUsage: /live-chat add <number|channel-id>"
+  invalid: "&cRun /live-chat list first, then pick a valid number, or pass a channel id directly."
+  success: "&aNow relaying to &f#%name%&a."
+  failed: "&cCould not link that channel (%message%)."
+
+remove:
+  usage: "&cUsage: /live-chat remove <number|channel-id>"
+  invalid: "&cThat's not a currently-linked channel."
+  success: "&aStopped relaying to &f#%name%&a."
+  failed: "&cCould not remove that channel (%message%)."
+
+status:
+  not-linked: "&7Not linked. Run /live-chat auth."
+  linked: "&aLinked."
+  no-guild: "&7No Discord server selected yet. Run /live-chat list."
+  guild: "&7Server: &f%name%"
+  no-channels: "&7No channels linked yet. Run /live-chat add."
+  channels-header: "&7Linked channels (remove with /live-chat remove <number>):"
+  channel-line: "&7  %index%) #%name%"
+  poller-running: "&7Discord -> Minecraft: &arunning"
+  poller-stopped: "&7Discord -> Minecraft: &cstopped"
+
+reload:
+  success: "&aConfig and language reloaded."
+
+no-permission: "&cYou don't have permission to do that."
+unknown-subcommand: "&cUnknown subcommand. Try /live-chat auth, list, select, add, remove, status or reload."

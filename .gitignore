@@ -1,0 +1,9 @@
+target/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Internal dev-session notes (Turkish, Claude session continuity per
+# .claude/rules/rule.md) - never meant to be public, on purpose.
+DEVLOG.md
