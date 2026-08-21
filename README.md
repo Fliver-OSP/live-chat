@@ -70,12 +70,6 @@ plugin at it - either change the constant and rebuild, or run with
 `-Dfliver.livechat.apiBaseUrl=https://your-backend.example` for
 local/testing use without a rebuild.
 
-## Languages
-
-Ships with `en_US`. Add another language by copying `lang/en_US.yml` inside
-the plugin's data folder, translating it, and pointing `config.yml`'s
-`language:` at the new file's name - no rebuild.
-
 ## Building from source
 
 ```
