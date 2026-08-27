@@ -100,6 +100,15 @@ credential never reaches the plugin. Response:
 `{id}` is the backend row id from `linked`/the create response. Deletes the
 webhook and stops relaying to that channel.
 
+### `POST /api/live-chat/unlink`
+
+Revokes this pairing's bearer token, deletes every linked channel row, and
+deletes each Discord webhook. Called by `/live-chat unlink confirm`. No
+body required. Response: `{ "ok": true }`.
+
+The plugin's `/live-chat ping` subcommand reuses `GET /api/live-chat/channels`
+with the pairing bearer (no separate health endpoint).
+
 ## Relay (Bearer)
 
 ### `POST /api/live-chat/relay/outbound`

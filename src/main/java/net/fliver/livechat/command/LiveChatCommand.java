@@ -21,7 +21,38 @@ import org.bukkit.command.TabCompleter;
 public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private static final List<String> SUBCOMMANDS =
-      List.of("auth", "list", "servers", "select", "add", "remove", "status", "reload");
+      List.of(
+          "auth",
+          "list",
+          "servers",
+          "select",
+          "add",
+          "remove",
+          "status",
+          "reload",
+          "ping",
+          "unlink",
+          "events",
+          "help");
+
+  private static final List<String> HELP_LINES =
+      List.of(
+          "auth",
+          "list",
+          "servers",
+          "select",
+          "add",
+          "remove",
+          "status",
+          "ping",
+          "unlink",
+          "events",
+          "reload",
+          "help");
+
+  private static final List<String> EVENT_KINDS =
+      List.of("join", "leave", "death", "advancement", "gamemode", "kick");
+  private static final List<String> EVENT_TOGGLES = List.of("on", "off");
 
   private final LiveChatPlugin plugin;
 
@@ -31,6 +62,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
   private volatile List<FliverLiveChatApi.Guild> lastGuildListing = List.of();
   private volatile List<FliverLiveChatApi.ChannelOption> lastChannelListing = List.of();
   private volatile boolean authPollInProgress = false;
+  private volatile long unlinkConfirmDeadlineMs = 0L;
 
   public LiveChatCommand(LiveChatPlugin plugin) {
     this.plugin = plugin;
@@ -43,7 +75,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
       return true;
     }
     if (args.length == 0) {
-      sender.sendMessage(msg("unknown-subcommand"));
+      handleHelp(sender);
       return true;
     }
 
@@ -56,6 +88,10 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
       case "remove" -> handleRemove(sender, args);
       case "status" -> handleStatus(sender);
       case "reload" -> handleReload(sender);
+      case "ping" -> handlePing(sender);
+      case "unlink" -> handleUnlink(sender, args);
+      case "events" -> handleEvents(sender, args);
+      case "help" -> handleHelp(sender);
       default -> sender.sendMessage(msg("unknown-subcommand"));
     }
     return true;
@@ -79,9 +115,16 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
             case "select" -> indexSuggestions(lastGuildListing.size());
             case "add" -> lastChannelListing.stream().map(FliverLiveChatApi.ChannelOption::name).toList();
             case "remove" -> plugin.state().channels().stream().map(PairingState.ChannelRef::channelName).toList();
+            case "unlink" -> List.of("confirm");
+            case "events" -> EVENT_KINDS;
             default -> List.<String>of();
           };
       return options.stream().filter(o -> o.toLowerCase(Locale.ROOT).startsWith(partial)).toList();
+    }
+
+    if (args.length == 3 && "events".equalsIgnoreCase(args[0])) {
+      String partial = args[2].toLowerCase(Locale.ROOT);
+      return EVENT_TOGGLES.stream().filter(o -> o.startsWith(partial)).toList();
     }
 
     return List.of();
@@ -411,9 +454,196 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
         msg(plugin.poller().isRunning() ? "status.poller-running" : "status.poller-stopped"));
   }
 
+  private void handleHelp(CommandSender sender) {
+    sender.sendMessage(msg("help.header"));
+    for (String key : HELP_LINES) {
+      sender.sendMessage(plugin.trio().lang().colored("help." + key));
+    }
+  }
+
   private void handleReload(CommandSender sender) {
     plugin.reloadConfigAndLang();
     sender.sendMessage(msg("reload.success"));
+  }
+
+  // ---- events ----
+
+  private void handleEvents(CommandSender sender, String[] args) {
+    if (args.length == 1) {
+      sender.sendMessage(msg("events.status-header"));
+      for (String kind : EVENT_KINDS) {
+        sender.sendMessage(
+            msg(
+                "events.status-line",
+                "type",
+                eventTypeLabel(kind),
+                "state",
+                eventStateLabel(isEventEnabled(kind))));
+      }
+      return;
+    }
+
+    if (args.length < 3) {
+      sender.sendMessage(msg("events.usage"));
+      return;
+    }
+
+    String kind = args[1].toLowerCase(Locale.ROOT);
+    if (!EVENT_KINDS.contains(kind)) {
+      sender.sendMessage(msg("events.invalid"));
+      return;
+    }
+
+    Boolean enabled = parseEventToggle(args[2]);
+    if (enabled == null) {
+      sender.sendMessage(msg("events.invalid"));
+      return;
+    }
+
+    plugin.setEventEnabled(kind, enabled);
+    sender.sendMessage(
+        msg("events.set", "type", eventTypeLabel(kind), "state", eventStateLabel(enabled)));
+  }
+
+  private boolean isEventEnabled(String kind) {
+    return plugin.eventEnabled(kind);
+  }
+
+  private String eventTypeLabel(String kind) {
+    return plugin.trio().lang().raw("events.type." + kind);
+  }
+
+  private String eventStateLabel(boolean enabled) {
+    return plugin.trio().lang().raw(enabled ? "events.state.on" : "events.state.off");
+  }
+
+  private static Boolean parseEventToggle(String value) {
+    return switch (value.toLowerCase(Locale.ROOT)) {
+      case "on" -> true;
+      case "off" -> false;
+      default -> null;
+    };
+  }
+
+  // ---- ping ----
+
+  private void handlePing(CommandSender sender) {
+    if (!plugin.state().isLinked()) {
+      reply(sender, "ping.not-linked");
+      return;
+    }
+    runAsync(
+        () -> {
+          long t0 = System.currentTimeMillis();
+          try {
+            FliverLiveChatApi.ChannelsResult result = plugin.api().listChannels(plugin.state().token());
+            long ms = System.currentTimeMillis() - t0;
+
+            plugin.state().setChannels(toStateChannels(result.linked()));
+            plugin.state().save();
+            plugin.syncPollerState();
+
+            String guild =
+                result.guildName() != null && !result.guildName().isBlank()
+                    ? result.guildName()
+                    : msg("ping.no-guild");
+            int count = result.linked().size();
+
+            reply(sender, "ping.ok", "ms", String.valueOf(ms), "guild", guild, "count", String.valueOf(count));
+            for (int i = 0; i < result.linked().size(); i++) {
+              FliverLiveChatApi.LinkedChannel channel = result.linked().get(i);
+              reply(
+                  sender,
+                  "ping.channel-line",
+                  "index",
+                  String.valueOf(i + 1),
+                  "name",
+                  channel.channelName());
+            }
+            reply(
+                sender,
+                plugin.poller().isRunning() ? "ping.poller-running" : "ping.poller-stopped");
+          } catch (FliverLiveChatApi.ApiException e) {
+            long ms = System.currentTimeMillis() - t0;
+            if (e.statusCode() == 401) {
+              reply(sender, "ping.unauthorized");
+              return;
+            }
+            if (e.statusCode() == 409) {
+              reply(
+                  sender,
+                  "ping.ok",
+                  "ms",
+                  String.valueOf(ms),
+                  "guild",
+                  msg("ping.no-guild"),
+                  "count",
+                  String.valueOf(plugin.state().channels().size()));
+              reply(
+                  sender,
+                  plugin.poller().isRunning() ? "ping.poller-running" : "ping.poller-stopped");
+              return;
+            }
+            reply(sender, "ping.unreachable", "ms", String.valueOf(ms));
+          } catch (Exception e) {
+            long ms = System.currentTimeMillis() - t0;
+            reply(sender, "ping.unreachable", "ms", String.valueOf(ms));
+          }
+        });
+  }
+
+  // ---- unlink ----
+
+  private void handleUnlink(CommandSender sender, String[] args) {
+    if (!plugin.state().isLinked()) {
+      reply(sender, "unlink.not-linked");
+      return;
+    }
+
+    if (args.length < 2 || !"confirm".equalsIgnoreCase(args[1])) {
+      unlinkConfirmDeadlineMs = System.currentTimeMillis() + 30_000L;
+      reply(sender, "unlink.confirm-hint");
+      return;
+    }
+
+    if (System.currentTimeMillis() > unlinkConfirmDeadlineMs) {
+      reply(sender, "unlink.confirm-expired");
+      return;
+    }
+
+    unlinkConfirmDeadlineMs = 0L;
+    String token = plugin.state().token();
+    runAsync(
+        () -> {
+          boolean backendOk = false;
+          try {
+            plugin.api().unlink(token);
+            backendOk = true;
+          } catch (FliverLiveChatApi.ApiException e) {
+            if (e.statusCode() != 401) {
+              plugin
+                  .getLogger()
+                  .fine("Unlink backend call failed: " + e.getMessage());
+            }
+          } catch (Exception e) {
+            plugin.getLogger().fine("Unlink backend call failed: " + e.getMessage());
+          }
+
+          try {
+            plugin.state().clearPersisted();
+          } catch (Exception e) {
+            plugin.state().reset();
+            reply(sender, "unlink.failed", "message", messageOf(e));
+            return;
+          }
+          plugin.syncPollerState();
+
+          if (backendOk) {
+            reply(sender, "unlink.success");
+          } else {
+            reply(sender, "unlink.local-cleared");
+          }
+        });
   }
 
   // ---- helpers ----

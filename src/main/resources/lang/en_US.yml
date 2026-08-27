@@ -66,8 +66,58 @@ status:
 reload:
   success: "&aConfig and language reloaded."
 
+ping:
+  not-linked: "&cNot linked yet. Run /live-chat auth first."
+  ok: "&aBackend reachable in &f%ms%ms&a. Server: &f%guild%&a. Linked channels: &f%count%&a."
+  no-guild: "no guild selected"
+  channel-line: "&7  %index%) #%name%"
+  poller-running: "&7Discord -> Minecraft: &arunning"
+  poller-stopped: "&7Discord -> Minecraft: &cstopped"
+  unreachable: "&cBackend unreachable (&f%ms%ms&c)."
+  unauthorized: "&cPairing token invalid or revoked. Run /live-chat auth again."
+
+unlink:
+  not-linked: "&7Not linked - nothing to unlink."
+  confirm-hint: "&eRun &f/live-chat unlink confirm &ewithin 30 seconds to disconnect this server."
+  confirm-expired: "&cConfirmation expired. Run &f/live-chat unlink &cagain first."
+  success: "&aUnlinked. Run &f/live-chat auth &ato pair again."
+  local-cleared: "&aLocal pairing cleared. The backend may already have been unlinked."
+  failed: "&cCould not clear local pairing (%message%)."
+
+events:
+  status-header: "&7Discord event relay (chat is always on when linked):"
+  status-line: "&7  %type%: %state%"
+  usage: "&cUsage: /live-chat events <join|leave|death|advancement|gamemode|kick> <on|off>"
+  invalid: "&cUse join, leave, death, advancement, gamemode, or kick with on or off."
+  set: "&a%type% events are now &f%state%&a."
+  type:
+    join: "Join"
+    leave: "Leave"
+    death: "Death"
+    advancement: "Advancement"
+    gamemode: "Gamemode"
+    kick: "Kick"
+  state:
+    on: "&aon"
+    off: "&coff"
+
+help:
+  header: "&7Commands:"
+  auth: "&f/live-chat auth &7- Start Discord pairing (opens a browser link)."
+  list: "&f/live-chat list &7- List Discord servers, or channels after you pick one."
+  servers: "&f/live-chat servers &7- List Discord servers again (switch server)."
+  select: "&f/live-chat select <number> &7- Select a Discord server from the last list."
+  add: "&f/live-chat add <number|channel-id> &7- Link a text channel for chat relay."
+  remove: "&f/live-chat remove <number|channel-id> &7- Stop relaying to a linked channel."
+  status: "&f/live-chat status &7- Show local pairing, guild, channels, and poller state."
+  ping: "&f/live-chat ping &7- Check backend reachability and linked channel summary."
+  unlink: "&f/live-chat unlink &7- Start disconnect; &f/live-chat unlink confirm &7within 30s to finish."
+  events: "&f/live-chat events &7- Show join/leave/death/advancement/gamemode/kick relay; &f... <kind> on|off &7to toggle (off by default)."
+  reload: "&f/live-chat reload &7- Reload config.yml and the language file."
+  help: "&f/live-chat help &7- Show this command list."
+
 update:
-  available: "&eNew version available: &f%latest% &7(you have &f%current%&7). GitHub: &f%url%"
+  available: "&eNew version &f%latest% &7(you have &f%current%&7). &aClick to download"
 
 no-permission: "&cYou don't have permission to do that."
-unknown-subcommand: "&cUnknown subcommand. Try /live-chat auth, list, servers, select, add, remove, status or reload."
+unknown-subcommand: "&cUnknown subcommand. Run &f/live-chat help &cor &f/live-chat &cwith no arguments for the command list."

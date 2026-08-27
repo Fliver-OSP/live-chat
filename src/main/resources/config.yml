@@ -25,3 +25,27 @@ update-check:
   enabled: true
   # Hours between checks after the first check (~1 minute after enable).
   interval-hours: 6
+
+# Minecraft -> Discord (chat relay is always on when linked; these are optional).
+# Disabled by default — turn on with /live-chat events <kind> on.
+# Placeholders: %player%; death also %death_message%; advancement %advancement%;
+# gamemode %gamemode%; kick %reason%. Discord markdown allowed.
+events:
+  join:
+    enabled: false
+    discord-format: "**%player%** joined the game"
+  leave:
+    enabled: false
+    discord-format: "**%player%** left the game"
+  death:
+    enabled: false
+    discord-format: "%death_message%"
+  advancement:
+    enabled: false
+    discord-format: "**%player%** made the advancement **%advancement%**"
+  gamemode:
+    enabled: false
+    discord-format: "**%player%** changed gamemode to **%gamemode%**"
+  kick:
+    enabled: false
+    discord-format: "**%player%** was kicked: %reason%"

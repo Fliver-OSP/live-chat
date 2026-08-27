@@ -129,4 +129,12 @@ public final class PairingState {
     guildName = null;
     channels.clear();
   }
+
+  /** Clears memory and removes pairing.dat from disk (unlink). */
+  public synchronized void clearPersisted() throws Exception {
+    reset();
+    if (dataFile.isFile()) {
+      Files.delete(dataFile.toPath());
+    }
+  }
 }

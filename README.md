@@ -25,6 +25,9 @@ the Fliver Live Chat API client and Discord relay stay separate.
 
 ## Setup
 
+Run `/live-chat` or `/live-chat help` anytime for the full command list with
+descriptions.
+
 1. Install the jar in your server's `plugins/` folder and start the server.
 2. Run `/live-chat auth`. It prints a link - open it and sign in with
    Discord.
@@ -41,6 +44,19 @@ pairing, selected server, and linked channels. `/live-chat remove <number>`
 unlinks a channel; `/live-chat servers` lists Discord servers again so you
 can switch; `/live-chat reload` reloads `config.yml` and the language file.
 
+`/live-chat ping` checks that this install can reach the backend with its
+pairing token (guild name and linked channel list — no public health
+endpoint). `/live-chat unlink` disconnects the server after a 30-second
+confirm step.
+
+Join, leave, death, advancement, gamemode change, and kick messages can be
+relayed to Discord too — they are **off by default** (only chat relay is on).
+Enable with `/live-chat events join on` (and `leave`, `death`, `advancement`,
+`gamemode`, or `kick` the same way), or edit `events` in `config.yml`.
+
+When a newer plugin version is published, ops see an in-game notice with a
+click-to-download link (GitHub jar asset, release page, or Fliver download).
+
 ## Supported versions
 
 Compiled against Paper 1.20.1 with `api-version: '1.20'` set in
@@ -53,11 +69,12 @@ release without needing a rebuild for every new Minecraft version.
 
 `config.yml` has no Discord credentials in it and no backend URL either -
 see the file itself for what each setting does (language, poll interval,
-the Discord→Minecraft message format). The only thing this plugin stores
-locally is its own pairing token from `/live-chat auth`, encrypted at rest
-(`pairing.key` / `pairing.dat` in the plugin's data folder) with a key
-generated fresh on first run - never shipped in the jar, never the same
-across two installs.
+the Discord→Minecraft message format, join/leave/death/advancement/gamemode/kick
+templates). The only
+thing this plugin stores locally is its own pairing token from
+`/live-chat auth`, encrypted at rest (`pairing.key` / `pairing.dat` in the
+plugin's data folder) with a key generated fresh on first run - never shipped
+in the jar, never the same across two installs.
 
 ## Which backend it talks to
 

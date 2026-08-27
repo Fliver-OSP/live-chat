@@ -4,6 +4,7 @@ import java.util.logging.Level;
 import net.fliver.livechat.api.FliverLiveChatApi;
 import net.fliver.livechat.command.LiveChatCommand;
 import net.fliver.livechat.minecraft.ChatListener;
+import net.fliver.livechat.minecraft.ServerEventListener;
 import net.fliver.livechat.relay.InboundPoller;
 import net.fliver.livechat.state.PairingState;
 import net.fliver.livechat.update.UpdateChecker;
@@ -50,6 +51,7 @@ public final class LiveChatPlugin extends JavaPlugin {
     }
 
     getServer().getPluginManager().registerEvents(new ChatListener(this, api, state), this);
+    getServer().getPluginManager().registerEvents(new ServerEventListener(this, api, state), this);
 
     syncPollerState();
     startUpdateChecker();
@@ -122,6 +124,32 @@ public final class LiveChatPlugin extends JavaPlugin {
 
   public int updateCheckIntervalHours() {
     return Math.max(1, trio.configs().integer("update-check.interval-hours", 6));
+  }
+
+  public boolean eventEnabled(String kind) {
+    return trio.configs().bool("events." + kind + ".enabled", false);
+  }
+
+  public String eventFormat(String kind) {
+    return trio.configs().string("events." + kind + ".discord-format", defaultEventFormat(kind));
+  }
+
+  /** Persists events.{kind}.enabled to config.yml. */
+  public void setEventEnabled(String kind, boolean enabled) {
+    getConfig().set("events." + kind + ".enabled", enabled);
+    saveConfig();
+  }
+
+  private static String defaultEventFormat(String kind) {
+    return switch (kind) {
+      case "join" -> "**%player%** joined the game";
+      case "leave" -> "**%player%** left the game";
+      case "death" -> "%death_message%";
+      case "advancement" -> "**%player%** made the advancement **%advancement%**";
+      case "gamemode" -> "**%player%** changed gamemode to **%gamemode%**";
+      case "kick" -> "**%player%** was kicked: %reason%";
+      default -> "%player%";
+    };
   }
 
   public Trio trio() {

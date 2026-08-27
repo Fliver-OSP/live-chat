@@ -28,8 +28,19 @@ import java.util.Map;
 public final class FliverLiveChatApi {
 
   public static final class ApiException extends Exception {
+    private final int statusCode;
+
     public ApiException(String message) {
+      this(message, 0);
+    }
+
+    public ApiException(String message, int statusCode) {
       super(message);
+      this.statusCode = statusCode;
+    }
+
+    public int statusCode() {
+      return statusCode;
     }
   }
 
@@ -161,6 +172,11 @@ public final class FliverLiveChatApi {
     delete("/api/live-chat/channels/" + rowId, token);
   }
 
+  /** Revokes this pairing, deletes all linked webhooks server-side, and invalidates the bearer token. */
+  public void unlink(String token) throws ApiException, IOException, InterruptedException {
+    post("/api/live-chat/unlink", token, Map.of(), Duration.ofSeconds(15));
+  }
+
   // ---- Relay ----
 
   public int relayOutbound(String token, String playerName, String playerUuid, String message)
@@ -233,12 +249,15 @@ public final class FliverLiveChatApi {
     try {
       json = Json.asObject(Json.parse(response.body()));
     } catch (RuntimeException malformed) {
-      throw new ApiException("Backend returned an unexpected response (HTTP " + response.statusCode() + ").");
+      throw new ApiException(
+          "Backend returned an unexpected response (HTTP " + response.statusCode() + ").",
+          response.statusCode());
     }
 
     if (!Json.asBoolean(json.get("ok"), false)) {
       throw new ApiException(
-          Json.asString(json.get("message"), "Request failed (HTTP " + response.statusCode() + ")."));
+          Json.asString(json.get("message"), "Request failed (HTTP " + response.statusCode() + ")."),
+          response.statusCode());
     }
     return json;
   }
