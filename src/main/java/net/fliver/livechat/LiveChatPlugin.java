@@ -80,11 +80,11 @@ public final class LiveChatPlugin extends JavaPlugin {
   }
 
   private void startUpdateChecker() {
-    if (updateChecker != null) {
-      updateChecker.stop();
+    if (updateChecker == null) {
+      updateChecker = new UpdateChecker(this);
+      getServer().getPluginManager().registerEvents(updateChecker, this);
     }
-    updateChecker = new UpdateChecker(this, updateCheckEnabled(), updateCheckIntervalHours());
-    updateChecker.start();
+    updateChecker.restart(updateCheckEnabled(), updateCheckIntervalHours());
   }
 
   /** Starts/stops the Discord -> Minecraft poller based on current pairing state - called after auth, add, remove and reload. */
