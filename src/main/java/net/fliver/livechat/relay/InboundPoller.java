@@ -2,6 +2,7 @@ package net.fliver.livechat.relay;
 
 import java.util.List;
 import java.util.logging.Level;
+import net.fliver.livechat.LiveChatPlugin;
 import net.fliver.livechat.api.FliverLiveChatApi;
 import net.fliver.livechat.api.FliverLiveChatApi.InboundMessage;
 import net.fliver.livechat.state.PairingState;
@@ -9,7 +10,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
-import org.bukkit.plugin.java.JavaPlugin;
 
 /**
  * Discord -> Minecraft. A single async task that blocks in a loop calling
@@ -23,14 +23,15 @@ import org.bukkit.plugin.java.JavaPlugin;
  */
 public final class InboundPoller {
 
-  private final JavaPlugin plugin;
+  private final LiveChatPlugin plugin;
   private final FliverLiveChatApi api;
   private final PairingState state;
   private final String messageFormat;
 
   private volatile boolean running;
 
-  public InboundPoller(JavaPlugin plugin, FliverLiveChatApi api, PairingState state, String messageFormat) {
+  public InboundPoller(
+      LiveChatPlugin plugin, FliverLiveChatApi api, PairingState state, String messageFormat) {
     this.plugin = plugin;
     this.api = api;
     this.state = state;
@@ -44,7 +45,7 @@ public final class InboundPoller {
   public synchronized void start() {
     if (running) return;
     running = true;
-    Bukkit.getScheduler().runTaskAsynchronously(plugin, this::loop);
+    plugin.trio().scheduler().async(this::loop);
   }
 
   public synchronized void stop() {
@@ -70,16 +71,20 @@ public final class InboundPoller {
       } catch (Exception failure) {
         plugin
             .getLogger()
-            .log(Level.WARNING, "Live Chat: could not reach the backend for Discord -> Minecraft relay, retrying shortly: " + failure.getMessage());
+            .log(
+                Level.WARNING,
+                "Live Chat: could not reach the backend for Discord -> Minecraft relay, retrying shortly: "
+                    + failure.getMessage());
         sleepQuietly(5000);
       }
     }
   }
 
   private void broadcast(InboundMessage message) {
-    Bukkit.getScheduler()
-        .runTask(
-            plugin,
+    plugin
+        .trio()
+        .scheduler()
+        .sync(
             () -> {
               Component rendered =
                   MiniMessage.miniMessage()

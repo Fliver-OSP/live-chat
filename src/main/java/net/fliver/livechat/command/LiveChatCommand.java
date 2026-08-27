@@ -7,29 +7,27 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import net.fliver.livechat.LiveChatPlugin;
 import net.fliver.livechat.api.FliverLiveChatApi;
-import net.fliver.livechat.lang.Lang;
 import net.fliver.livechat.state.PairingState;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 
-/** /live-chat auth|list|select|add|remove|status|reload - see PROTOCOL.md for what each subcommand calls. */
+/** /live-chat auth|list|servers|select|add|remove|status|reload - see PROTOCOL.md for what each subcommand calls. */
 public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private static final List<String> SUBCOMMANDS =
-      List.of("auth", "list", "select", "add", "remove", "status", "reload");
+      List.of("auth", "list", "servers", "select", "add", "remove", "status", "reload");
 
   private final LiveChatPlugin plugin;
 
   // Single-admin-at-a-time assumption is fine for v1: these just remember
-  // the numbers /live-chat list most recently printed, so /live-chat select
-  // <n> and /live-chat add <n> know what "n" refers to.
+  // the numbers /live-chat list or /live-chat servers most recently printed,
+  // so /live-chat select <n> and /live-chat add <n> know what "n" refers to.
   private volatile List<FliverLiveChatApi.Guild> lastGuildListing = List.of();
   private volatile List<FliverLiveChatApi.ChannelOption> lastChannelListing = List.of();
   private volatile boolean authPollInProgress = false;
@@ -41,23 +39,24 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
   @Override
   public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
     if (!sender.hasPermission("livechat.admin")) {
-      sender.sendMessage(prefixed(plugin.lang().get("no-permission")));
+      sender.sendMessage(msg("no-permission"));
       return true;
     }
     if (args.length == 0) {
-      sender.sendMessage(prefixed(plugin.lang().get("unknown-subcommand")));
+      sender.sendMessage(msg("unknown-subcommand"));
       return true;
     }
 
     switch (args[0].toLowerCase(Locale.ROOT)) {
       case "auth" -> handleAuth(sender);
       case "list" -> handleList(sender);
+      case "servers" -> handleServers(sender);
       case "select" -> handleSelect(sender, args);
       case "add" -> handleAdd(sender, args);
       case "remove" -> handleRemove(sender, args);
       case "status" -> handleStatus(sender);
       case "reload" -> handleReload(sender);
-      default -> sender.sendMessage(prefixed(plugin.lang().get("unknown-subcommand")));
+      default -> sender.sendMessage(msg("unknown-subcommand"));
     }
     return true;
   }
@@ -98,7 +97,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private void handleAuth(CommandSender sender) {
     if (authPollInProgress) {
-      reply(sender, plugin.lang().get("auth.already-pending"));
+      reply(sender, "auth.already-pending");
       return;
     }
     authPollInProgress = true;
@@ -106,23 +105,23 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
         () -> {
           try {
             FliverLiveChatApi.PairStart start = plugin.api().pairStart();
-            reply(sender, plugin.lang().get("auth.started", "url", start.authUrl()));
+            reply(sender, "auth.started", "url", start.authUrl());
             reply(
                 sender,
-                plugin
-                    .lang()
-                    .get("auth.started-hint", "minutes", String.valueOf(Math.max(1, start.expiresInSeconds() / 60))));
+                "auth.started-hint",
+                "minutes",
+                String.valueOf(Math.max(1, start.expiresInSeconds() / 60)));
             pollAuth(sender, start.pairCode(), start.expiresInSeconds());
           } catch (Exception e) {
             authPollInProgress = false;
-            reply(sender, plugin.lang().get("auth.failed", "message", messageOf(e)));
+            reply(sender, "auth.failed", "message", messageOf(e));
           }
         });
   }
 
   private void pollAuth(CommandSender sender, String pairCode, int expiresInSeconds) {
     long deadline = System.currentTimeMillis() + expiresInSeconds * 1000L;
-    long intervalMs = Math.max(1, plugin.config().pollIntervalSeconds()) * 1000L;
+    long intervalMs = plugin.pollIntervalSeconds() * 1000L;
     try {
       while (System.currentTimeMillis() < deadline) {
         Thread.sleep(intervalMs);
@@ -131,18 +130,18 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
           plugin.state().setToken(linked.token());
           plugin.state().save();
           authPollInProgress = false;
-          reply(sender, plugin.lang().get("auth.success"));
+          reply(sender, "auth.success");
           return;
         }
       }
       authPollInProgress = false;
-      reply(sender, plugin.lang().get("auth.timeout"));
+      reply(sender, "auth.timeout");
     } catch (InterruptedException interrupted) {
       Thread.currentThread().interrupt();
       authPollInProgress = false;
     } catch (Exception e) {
       authPollInProgress = false;
-      reply(sender, plugin.lang().get("auth.failed", "message", messageOf(e)));
+      reply(sender, "auth.failed", "message", messageOf(e));
     }
   }
 
@@ -150,7 +149,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private void handleList(CommandSender sender) {
     if (!plugin.state().isLinked()) {
-      reply(sender, plugin.lang().get("list.not-linked"));
+      reply(sender, "list.not-linked");
       return;
     }
     runAsync(
@@ -162,7 +161,23 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
               listChannels(sender);
             }
           } catch (Exception e) {
-            reply(sender, plugin.lang().get("list.failed", "message", messageOf(e)));
+            reply(sender, "list.failed", "message", messageOf(e));
+          }
+        });
+  }
+
+  /** Always lists Discord servers (even if one is already selected) so admins can switch. */
+  private void handleServers(CommandSender sender) {
+    if (!plugin.state().isLinked()) {
+      reply(sender, "list.not-linked");
+      return;
+    }
+    runAsync(
+        () -> {
+          try {
+            listGuilds(sender);
+          } catch (Exception e) {
+            reply(sender, "list.failed", "message", messageOf(e));
           }
         });
   }
@@ -171,13 +186,15 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
     List<FliverLiveChatApi.Guild> guilds = plugin.api().listGuilds(plugin.state().token());
     lastGuildListing = guilds;
     if (guilds.isEmpty()) {
-      reply(sender, plugin.lang().get("list.no-guilds"));
+      reply(sender, "list.no-guilds");
       return;
     }
-    reply(sender, plugin.lang().get("list.guild-header"));
+    reply(sender, "list.guild-header");
+    String currentGuildId = plugin.state().guildId();
     for (int i = 0; i < guilds.size(); i++) {
       FliverLiveChatApi.Guild guild = guilds.get(i);
       int index = i + 1;
+      boolean selected = currentGuildId != null && currentGuildId.equals(guild.id());
 
       // Only clickable-to-select when the bot is actually there - selecting
       // a guild it hasn't been invited to just bounces off the backend.
@@ -189,7 +206,9 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
               : Component.text(guild.name(), NamedTextColor.WHITE);
 
       Component status;
-      if (guild.botPresent()) {
+      if (selected) {
+        status = Component.text(" (selected)", NamedTextColor.AQUA);
+      } else if (guild.botPresent()) {
         status = Component.text(" (bot in server)", NamedTextColor.GREEN);
       } else if (guild.inviteUrl() != null) {
         status =
@@ -211,10 +230,10 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
     plugin.syncPollerState();
 
     if (result.available().isEmpty()) {
-      reply(sender, plugin.lang().get("list.no-channels"));
+      reply(sender, "list.no-channels");
       return;
     }
-    reply(sender, plugin.lang().get("list.channel-header"));
+    reply(sender, "list.channel-header");
     Set<String> linkedIds =
         result.linked().stream().map(FliverLiveChatApi.LinkedChannel::channelId).collect(Collectors.toSet());
     for (int i = 0; i < result.available().size(); i++) {
@@ -238,25 +257,31 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private void handleSelect(CommandSender sender, String[] args) {
     if (args.length < 2) {
-      reply(sender, plugin.lang().get("select.usage"));
+      reply(sender, "select.usage");
       return;
     }
     Integer index = tryParseInt(args[1]);
     List<FliverLiveChatApi.Guild> guilds = lastGuildListing;
     if (index == null || index < 1 || index > guilds.size()) {
-      reply(sender, plugin.lang().get("select.invalid"));
+      reply(sender, "select.invalid");
       return;
     }
     FliverLiveChatApi.Guild chosen = guilds.get(index - 1);
+    String previousGuildId = plugin.state().guildId();
     runAsync(
         () -> {
           try {
             plugin.api().selectGuild(plugin.state().token(), chosen.id(), chosen.name());
             plugin.state().setGuild(chosen.id(), chosen.name());
+            // Switching servers invalidates the previous guild's linked channels locally.
+            if (previousGuildId == null || !previousGuildId.equals(chosen.id())) {
+              plugin.state().setChannels(List.of());
+            }
             plugin.state().save();
-            reply(sender, plugin.lang().get("select.success", "name", chosen.name()));
+            plugin.syncPollerState();
+            reply(sender, "select.success", "name", chosen.name());
           } catch (Exception e) {
-            reply(sender, plugin.lang().get("select.failed", "message", messageOf(e)));
+            reply(sender, "select.failed", "message", messageOf(e));
           }
         });
   }
@@ -265,7 +290,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private void handleAdd(CommandSender sender, String[] args) {
     if (args.length < 2) {
-      reply(sender, plugin.lang().get("add.usage"));
+      reply(sender, "add.usage");
       return;
     }
     String arg = args[1];
@@ -290,7 +315,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
       channelId = arg;
       channelNameHint = arg;
     } else {
-      reply(sender, plugin.lang().get("add.invalid"));
+      reply(sender, "add.invalid");
       return;
     }
 
@@ -302,9 +327,9 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
             plugin.state().addChannel(new PairingState.ChannelRef(linked.rowId(), linked.channelId(), linked.channelName()));
             plugin.state().save();
             plugin.syncPollerState();
-            reply(sender, plugin.lang().get("add.success", "name", linked.channelName()));
+            reply(sender, "add.success", "name", linked.channelName());
           } catch (Exception e) {
-            reply(sender, plugin.lang().get("add.failed", "message", messageOf(e)));
+            reply(sender, "add.failed", "message", messageOf(e));
           }
         });
   }
@@ -313,7 +338,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private void handleRemove(CommandSender sender, String[] args) {
     if (args.length < 2) {
-      reply(sender, plugin.lang().get("remove.usage"));
+      reply(sender, "remove.usage");
       return;
     }
     String arg = args[1];
@@ -332,7 +357,7 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
       }
     }
     if (target == null) {
-      reply(sender, plugin.lang().get("remove.invalid"));
+      reply(sender, "remove.invalid");
       return;
     }
 
@@ -344,9 +369,9 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
             plugin.state().removeChannelByRowId(finalTarget.id());
             plugin.state().save();
             plugin.syncPollerState();
-            reply(sender, plugin.lang().get("remove.success", "name", finalTarget.channelName()));
+            reply(sender, "remove.success", "name", finalTarget.channelName());
           } catch (Exception e) {
-            reply(sender, plugin.lang().get("remove.failed", "message", messageOf(e)));
+            reply(sender, "remove.failed", "message", messageOf(e));
           }
         });
   }
@@ -355,59 +380,62 @@ public final class LiveChatCommand implements CommandExecutor, TabCompleter {
 
   private void handleStatus(CommandSender sender) {
     // Everything here is local state - no network call, runs on the calling thread.
-    Lang lang = plugin.lang();
     if (!plugin.state().isLinked()) {
-      sender.sendMessage(prefixed(lang.get("status.not-linked")));
+      sender.sendMessage(msg("status.not-linked"));
       return;
     }
-    sender.sendMessage(prefixed(lang.get("status.linked")));
+    sender.sendMessage(msg("status.linked"));
 
     if (!plugin.state().hasGuild()) {
-      sender.sendMessage(prefixed(lang.get("status.no-guild")));
+      sender.sendMessage(msg("status.no-guild"));
     } else {
-      sender.sendMessage(prefixed(lang.get("status.guild", "name", plugin.state().guildName())));
+      sender.sendMessage(msg("status.guild", "name", plugin.state().guildName()));
       List<PairingState.ChannelRef> channels = plugin.state().channels();
       if (channels.isEmpty()) {
-        sender.sendMessage(prefixed(lang.get("status.no-channels")));
+        sender.sendMessage(msg("status.no-channels"));
       } else {
-        sender.sendMessage(prefixed(lang.get("status.channels-header")));
+        sender.sendMessage(msg("status.channels-header"));
         for (int i = 0; i < channels.size(); i++) {
           sender.sendMessage(
-              prefixed(
-                  lang.get(
-                      "status.channel-line", "index", String.valueOf(i + 1), "name", channels.get(i).channelName())));
+              msg(
+                  "status.channel-line",
+                  "index",
+                  String.valueOf(i + 1),
+                  "name",
+                  channels.get(i).channelName()));
         }
       }
     }
 
     sender.sendMessage(
-        prefixed(plugin.poller().isRunning() ? lang.get("status.poller-running") : lang.get("status.poller-stopped")));
+        msg(plugin.poller().isRunning() ? "status.poller-running" : "status.poller-stopped"));
   }
 
   private void handleReload(CommandSender sender) {
     plugin.reloadConfigAndLang();
-    sender.sendMessage(prefixed(plugin.lang().get("reload.success")));
+    sender.sendMessage(msg("reload.success"));
   }
 
   // ---- helpers ----
 
-  private String prefixed(String message) {
-    return plugin.lang().prefix() + message;
+  private String msg(String key, String... placeholders) {
+    return plugin.trio().messages().prefixed(key, placeholders);
   }
 
   private void runAsync(Runnable task) {
-    Bukkit.getScheduler().runTaskAsynchronously(plugin, task);
+    plugin.trio().scheduler().async(task);
   }
 
-  private void reply(CommandSender sender, String message) {
-    Bukkit.getScheduler().runTask(plugin, () -> sender.sendMessage(prefixed(message)));
+  private void reply(CommandSender sender, String key, String... placeholders) {
+    String message = msg(key, placeholders);
+    plugin.trio().scheduler().sync(() -> sender.sendMessage(message));
   }
 
   // No prefix on these - they're indented sub-items under a header line
   // (reply(...) already printed the header with the prefix), and clickable
   // components need Component, not the plain colored String reply() sends.
   private void replyComponent(CommandSender sender, Component message) {
-    Bukkit.getScheduler().runTask(plugin, () -> sender.sendMessage(message));
+    plugin.trio().scheduler().sync(() -> sender.sendMessage(message));
   }
 
   private static String messageOf(Exception e) {

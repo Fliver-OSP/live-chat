@@ -11,7 +11,7 @@ website: https://github.com/Fliver-OSP/live-chat
 commands:
   live-chat:
     description: Manage the Discord chat bridge.
-    usage: /live-chat <auth|list|select|add|remove|status|reload>
+    usage: /live-chat <auth|list|servers|select|add|remove|status|reload>
     permission: livechat.admin
 
 permissions:

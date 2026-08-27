@@ -36,8 +36,8 @@ list:
 
 select:
   usage: "&cUsage: /live-chat select <number>"
-  invalid: "&cRun /live-chat list first, then pick a valid number."
-  success: "&aSelected &f%name%&a. Run /live-chat list again to see its channels."
+  invalid: "&cRun /live-chat servers (or /live-chat list) first, then pick a valid number."
+  success: "&aSelected &f%name%&a. Run &f/live-chat list&a to see its channels."
   failed: "&cCould not select that server (%message%)."
 
 add:
@@ -70,4 +70,4 @@ update:
   available: "&eNew version available: &f%latest% &7(you have &f%current%&7). GitHub: &f%url%"
 
 no-permission: "&cYou don't have permission to do that."
-unknown-subcommand: "&cUnknown subcommand. Try /live-chat auth, list, select, add, remove, status or reload."
+unknown-subcommand: "&cUnknown subcommand. Try /live-chat auth, list, servers, select, add, remove, status or reload."

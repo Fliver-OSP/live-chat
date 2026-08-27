@@ -5,8 +5,10 @@
 </p>
 
 A Paper plugin that relays Minecraft server chat to a Discord channel and
-back, in real time. It's its own plugin - it doesn't bundle with, depend on,
-or require pairing with any other Fliver product.
+back, in real time. It's its own plugin - it doesn't require pairing with
+any other Fliver product. It shades [Trio](https://github.com/Fliver-OSP/trio)
+(`net.fliver:trio`) for config, language files, and Folia-safe scheduling;
+the Fliver Live Chat API client and Discord relay stay separate.
 
 - **No open ports, no second host.** The plugin only makes outbound HTTPS
   calls.
@@ -36,8 +38,8 @@ or require pairing with any other Fliver product.
 
 That's it - chat now flows both ways. `/live-chat status` shows the current
 pairing, selected server, and linked channels. `/live-chat remove <number>`
-unlinks a channel; `/live-chat reload` reloads `config.yml` and the
-language file.
+unlinks a channel; `/live-chat servers` lists Discord servers again so you
+can switch; `/live-chat reload` reloads `config.yml` and the language file.
 
 ## Supported versions
 
@@ -71,6 +73,10 @@ plugin at it - either change the constant and rebuild, or run with
 local/testing use without a rebuild.
 
 ## Building from source
+
+Requires Maven and a JDK that can compile to Java 17. Trio is pulled from
+`https://fliver.net/maven` and shaded into the jar (same pattern as Fliver
+Zen / Hello Trio).
 
 ```
 mvn package

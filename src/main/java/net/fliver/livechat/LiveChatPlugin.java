@@ -3,19 +3,17 @@ package net.fliver.livechat;
 import java.util.logging.Level;
 import net.fliver.livechat.api.FliverLiveChatApi;
 import net.fliver.livechat.command.LiveChatCommand;
-import net.fliver.livechat.config.PluginConfig;
-import net.fliver.livechat.lang.Lang;
 import net.fliver.livechat.minecraft.ChatListener;
 import net.fliver.livechat.relay.InboundPoller;
 import net.fliver.livechat.state.PairingState;
 import net.fliver.livechat.update.UpdateChecker;
+import net.fliver.trio.Trio;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class LiveChatPlugin extends JavaPlugin {
 
-  private PluginConfig config;
-  private Lang lang;
+  private Trio trio;
   private FliverLiveChatApi api;
   private PairingState state;
   private InboundPoller poller;
@@ -23,8 +21,9 @@ public final class LiveChatPlugin extends JavaPlugin {
 
   @Override
   public void onEnable() {
-    config = PluginConfig.load(this);
-    lang = Lang.load(this, config.language());
+    trio = Trio.create(this);
+    trio.configs().saveDefaults().reload();
+    trio.loadLang(languageCode());
     api = new FliverLiveChatApi();
 
     state = new PairingState(getDataFolder());
@@ -39,7 +38,7 @@ public final class LiveChatPlugin extends JavaPlugin {
       state.reset();
     }
 
-    poller = new InboundPoller(this, api, state, config.discordMessageFormat());
+    poller = new InboundPoller(this, api, state, discordMessageFormat());
 
     LiveChatCommand command = new LiveChatCommand(this);
     PluginCommand pluginCommand = getCommand("live-chat");
@@ -68,14 +67,14 @@ public final class LiveChatPlugin extends JavaPlugin {
 
   /** /live-chat reload - config.yml and lang/*.yml only; does not touch pairing state. */
   public void reloadConfigAndLang() {
-    config = PluginConfig.load(this);
-    lang = Lang.load(this, config.language());
+    trio.configs().reload();
+    trio.loadLang(languageCode());
     api = new FliverLiveChatApi();
 
     if (poller != null) {
       poller.stop();
     }
-    poller = new InboundPoller(this, api, state, config.discordMessageFormat());
+    poller = new InboundPoller(this, api, state, discordMessageFormat());
     syncPollerState();
     startUpdateChecker();
   }
@@ -84,8 +83,7 @@ public final class LiveChatPlugin extends JavaPlugin {
     if (updateChecker != null) {
       updateChecker.stop();
     }
-    updateChecker =
-        new UpdateChecker(this, config.updateCheckEnabled(), config.updateCheckIntervalHours());
+    updateChecker = new UpdateChecker(this, updateCheckEnabled(), updateCheckIntervalHours());
     updateChecker.start();
   }
 
@@ -99,12 +97,35 @@ public final class LiveChatPlugin extends JavaPlugin {
     }
   }
 
-  public PluginConfig config() {
-    return config;
+  private String languageCode() {
+    String lang = trio.configs().string("language", "en_US");
+    if (lang == null || lang.trim().isEmpty()) {
+      return "en_US";
+    }
+    return lang.trim();
   }
 
-  public Lang lang() {
-    return lang;
+  public int pollIntervalSeconds() {
+    return Math.max(1, trio.configs().integer("poll-interval-seconds", 3));
+  }
+
+  public String discordMessageFormat() {
+    return trio.configs()
+        .string(
+            "discord-message-format",
+            "<gray>[Discord]</gray> <white><player></white><gray>: </gray><white><message></white>");
+  }
+
+  public boolean updateCheckEnabled() {
+    return trio.configs().bool("update-check.enabled", true);
+  }
+
+  public int updateCheckIntervalHours() {
+    return Math.max(1, trio.configs().integer("update-check.interval-hours", 6));
+  }
+
+  public Trio trio() {
+    return trio;
   }
 
   public FliverLiveChatApi api() {

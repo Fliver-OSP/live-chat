@@ -12,7 +12,6 @@ import net.fliver.livechat.LiveChatPlugin;
 import net.fliver.livechat.api.Json;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Polls GitHub Releases for Fliver-OSP/live-chat and announces in-game when
@@ -31,7 +30,7 @@ public final class UpdateChecker {
   private final long intervalTicks;
 
   private volatile String lastAnnouncedTag;
-  private BukkitTask task;
+  private Object task;
 
   public UpdateChecker(LiveChatPlugin plugin, boolean enabled, int intervalHours) {
     this.plugin = plugin;
@@ -45,13 +44,12 @@ public final class UpdateChecker {
     if (!enabled) return;
     // First check a minute after enable so startup isn't blocked on GitHub.
     task =
-        Bukkit.getScheduler()
-            .runTaskTimerAsynchronously(plugin, this::checkOnce, 20L * 60L, intervalTicks);
+        plugin.trio().scheduler().timerAsync(this::checkOnce, 20L * 60L, intervalTicks);
   }
 
   public synchronized void stop() {
     if (task != null) {
-      task.cancel();
+      plugin.trio().scheduler().cancel(task);
       task = null;
     }
   }
@@ -73,9 +71,7 @@ public final class UpdateChecker {
     } catch (InterruptedException interrupted) {
       Thread.currentThread().interrupt();
     } catch (Exception e) {
-      plugin
-          .getLogger()
-          .log(Level.WARNING, "Update check failed: " + e.getMessage());
+      plugin.getLogger().log(Level.WARNING, "Update check failed: " + e.getMessage());
     }
   }
 
@@ -105,10 +101,11 @@ public final class UpdateChecker {
   }
 
   private void announce(String current, Release latest) {
-    String line =
+    String message =
         plugin
-            .lang()
-            .get(
+            .trio()
+            .messages()
+            .prefixed(
                 "update.available",
                 "current",
                 current,
@@ -116,10 +113,10 @@ public final class UpdateChecker {
                 latest.tag(),
                 "url",
                 latest.url());
-    String message = plugin.lang().prefix() + line;
-    Bukkit.getScheduler()
-        .runTask(
-            plugin,
+    plugin
+        .trio()
+        .scheduler()
+        .sync(
             () -> {
               plugin.getLogger().info(ChatPlain.strip(message));
               Bukkit.getConsoleSender().sendMessage(message);
